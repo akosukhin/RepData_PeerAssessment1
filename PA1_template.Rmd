@@ -4,22 +4,103 @@ output:
   html_document:
     keep_md: true
 ---
-
+```{r, echo=FALSE}
+knitr::opts_chunk$set(echo=TRUE)
+```
 
 ## Loading and preprocessing the data
 
-
+Fork/Clone the repository and set the working directory to the cloned folder
+```{r}
+setwd("~/Coursera/Reproducible Research/PeerAssessment1/RepData_PeerAssessment1")
+cn <- unz(description="activity.zip", filename="activity.csv")
+act_data <- read.csv(cn)
+act_data$date <- as.Date(act_data$date)
+```
 
 ## What is mean total number of steps taken per day?
 
+```{r}
+library(dplyr)
+```
 
+```{r}
+steps_day <- summarise(group_by(act_data, date), ttl_steps=sum(steps))
+```
+
+```{r, fig.height=3}
+hist(steps_day$ttl_steps, breaks=25, main="Distribution of steps per day", xlab=NULL, ylab="Number of days")
+```
+
+```{r}
+mn <- mean(steps_day$ttl_steps, na.rm=TRUE)
+md <- median(steps_day$ttl_steps, na.rm=TRUE)
+```
+
+The mean and median of the total number of steps taken per day is `r format(mn)` and `r md` respectively.
 
 ## What is the average daily activity pattern?
 
+```{r}
+day_pat <- summarise(group_by(act_data, interval), avg_steps=mean(steps, na.rm=TRUE))
+```
 
+```{r, fig.height=4}
+with(day_pat, plot(interval, avg_steps, type="l", main="Daily activity pattern", xlab="ID of 5-minute interval", ylab="Average number of steps"))
+```
+
+```{r}
+mx_int <- day_pat$interval[which.max(day_pat$avg_steps)]
+```
+
+The 5-minute interval with ID = `r mx_int` contains the maximum number of steps on average across all the days in the dataset.
 
 ## Imputing missing values
 
+```{r}
+mv_num <- sum(is.na(act_data$steps))
+```
 
+The total number of missing values in the dataset is `r mv_num`.
+
+```{r}
+act_data_impd <- act_data
+act_data_impd$steps[which(is.na(act_data_impd$steps))] <- day_pat$avg_steps[which(day_pat$interval %in% act_data_impd$interval[which(is.na(act_data_impd$steps))])]
+```
+
+```{r}
+steps_day_impd <- summarise(group_by(act_data_impd, date), ttl_steps=sum(steps))
+```
+
+```{r, fig.height=3}
+hist(steps_day_impd$ttl_steps, breaks=25, main="Distribution of steps per day after imputation", xlab=NULL, ylab="Number of days")
+```
+
+```{r}
+mn_impd <- mean(steps_day_impd$ttl_steps, na.rm=TRUE)
+md_impd <- median(steps_day_impd$ttl_steps, na.rm=TRUE)
+```
+
+The mean and median of the total number of steps taken per day is `r format(mn_impd)` and `r format(md_impd)` respectively.
+Median has changed after imputation.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+act_data_impd$wkday <- factor(weekdays(act_data_impd$date, abbreviate = TRUE) %in% c("бс", "Тё"), ordered=TRUE)
+levels(act_data_impd$wkday) <- c("weekday", "weekend")
+day_pat2 <- summarise(group_by(act_data_impd, interval, wkday), avg_steps=mean(steps, na.rm=TRUE))
+
+library(ggplot2)
+```
+
+```{r, fig.height=8}
+
+qplot(interval, avg_steps, data = day_pat2, facets = wkday ~ .,
+          xlab="Interval",
+          ylab="Number of steps", geom = "line")
+```
+
+```{r}
+sessionInfo()
+```
